@@ -1,0 +1,97 @@
+{
+  "name": "fractal-tutor",
+  "displayName": "Fractal Tutor",
+  "description": "AI tutor for Fractal Tech bootcamp students",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Education",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "type": "module",
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "fractal-tutor",
+          "title": "Fractal Tutor",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "fractal-tutor": [
+        {
+          "type": "webview",
+          "id": "fractal-tutor.chatView",
+          "name": "Chat"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "fractal-tutor.showContext",
+        "title": "Fractal Tutor: Show Current Context"
+      }
+    ],
+    "configuration": {
+      "title": "Fractal Tutor",
+      "properties": {
+        "fractalTutor.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic API key",
+          "markdownDescription": "Your Anthropic API key. Get one at https://console.anthropic.com/"
+        },
+        "fractalTutor.model": {
+          "type": "string",
+          "default": "claude-sonnet-4-20250514",
+          "description": "Which Claude model to use"
+        },
+        "fractalTutor.maxTokens": {
+          "type": "number",
+          "default": 4096,
+          "description": "Maximum tokens per response"
+        },
+        "fractalTutor.temperature": {
+          "type": "number",
+          "default": 1.0,
+          "description": "Temperature setting (0.0-1.0)"
+        },
+        "fractalTutor.includeTerminal": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include terminal output in context"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "bun run build",
+    "build": "bun run scripts/build.ts",
+    "watch": "bun run scripts/build.ts --watch",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/vscode": "^1.85.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

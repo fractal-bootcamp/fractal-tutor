@@ -1,0 +1,13 @@
+.vscode/**
+.vscode-test/**
+src/**
+scripts/**
+.gitignore
+.yarnrc
+bun.lockb
+tsconfig.json
+tailwind.config.js
+postcss.config.js
+node_modules/**
+**/*.map
+**/.DS_Store
