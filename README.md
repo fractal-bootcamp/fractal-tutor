@@ -63,26 +63,44 @@ fractal-tutor/
 └── tailwind.config.js
 ```
 
-## Next Steps
+## Configuration
 
-- [ ] Configure your Anthropic API key in VSCode settings
-- [ ] Implement Claude API integration
-- [ ] Add context gathering (editor state, terminal output, etc.)
-- [ ] Implement tool calls for file operations
-- [ ] Craft and iterate on the tutor system prompt
-- [ ] Add conversation persistence
+### Setting up your API Key
+
+1. Get an API key from [Anthropic Console](https://console.anthropic.com/)
+2. Open VSCode Settings (Cmd+, or Ctrl+,)
+3. Search for "Fractal Tutor"
+4. Enter your API key in **Fractal Tutor: Api Key**
+
+### Available Settings
+
+- **Api Key**: Your Anthropic API key
+- **Model**: Claude model to use (default: `claude-sonnet-4-20250514`)
+- **Max Tokens**: Maximum response length (default: 4096)
+- **Temperature**: Randomness (0.0-1.0, default: 1.0)
+- **Include Terminal**: Whether to capture terminal output (default: true)
+
+## Using the Extension
+
+1. Press F5 to launch Extension Development Host
+2. Click the Fractal Tutor icon in the activity bar
+3. Type your question and press Send
+4. Claude will respond based on the system prompt in `prompts/system-prompt.md`
 
 ## Current Status
 
-✅ **Phase 1 Complete!**
+✅ **Phase 2 Complete!**
 
-Basic extension scaffold with:
 - ✅ VSCode extension structure
-- ✅ Sidebar webview panel
-- ✅ React + Tailwind CSS chat UI
-- ✅ Bun build system
-- ✅ Successfully builds and bundles
+- ✅ Sidebar webview panel with React + Tailwind
+- ✅ Context gathering (editor, workspace, terminal)
+- ✅ Claude API integration
+- ✅ Conversation history management
+- ✅ Configurable settings
 
-**Ready to test!** Press F5 in VSCode to launch the extension.
-
-Next: Claude API integration
+**Next Steps:**
+- [ ] Refine system prompt for tutoring effectiveness
+- [ ] Add tool calls for file reading
+- [ ] Implement conversation persistence (save per workspace)
+- [ ] Add Problems panel integration
+- [ ] Polish UI and error handling
