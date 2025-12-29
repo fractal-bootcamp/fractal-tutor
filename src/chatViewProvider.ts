@@ -1,14 +1,19 @@
 import * as vscode from 'vscode';
 import { ContextGatherer } from './contextGatherer';
 import { getOutputPreview } from './terminalOutputCleaner';
+import { ClaudeService, Message } from './claudeService';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   private _view?: vscode.WebviewView;
+  private _claudeService: ClaudeService;
+  private _conversationHistory: Message[] = [];
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
     private readonly _contextGatherer: ContextGatherer
-  ) { }
+  ) {
+    this._claudeService = new ClaudeService(_extensionUri);
+  }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -30,72 +35,48 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         case 'sendMessage':
           await this._handleUserMessage(data.message);
           break;
+        case 'clearConversation':
+          this._conversationHistory = [];
+          break;
       }
     });
   }
 
   private async _handleUserMessage(message: string) {
-    // Gather context
-    const context = this._contextGatherer.getAllContext();
-
-    // TODO: Implement API call to Claude
-    // For now, echo back with context summary
-    const runningCount = context.terminal.runningCommands.length;
-    const completedCount = context.terminal.recentExecutions.length;
-    const terminalInfo = context.terminal.shellIntegrationAvailable
-      ? `Shell Integration ✓ - ${runningCount} running, ${completedCount} completed`
-      : 'Shell Integration ✗ - terminal output unavailable';
-
-    let contextSummary = `
-Context gathered:
-- Active file: ${context.editor.activeFile?.path || 'none'}
-- Cursor: Line ${context.editor.activeFile?.cursorPosition.line || '?'}
-- Open tabs: ${context.editor.openTabs.length}
-- Unsaved changes: ${context.workspace.unsavedChanges.length}
-- Terminal: ${terminalInfo}
-    `.trim();
-
-    // Show running commands
-    if (context.terminal.runningCommands.length > 0) {
-      contextSummary += '\n\n🔄 Running commands:';
-      context.terminal.runningCommands.forEach((exec) => {
-        const elapsed = Math.floor((Date.now() - exec.startTime.getTime()) / 1000);
-        contextSummary += `\n  ${exec.commandLine} (running ${elapsed}s)`;
-        if (exec.output) {
-          const preview = getOutputPreview(exec.output, true, 200);
-          if (preview) {
-            contextSummary += `\n    Latest: ${preview}`;
-          }
-        }
-      });
-    }
-
-    // Add recent terminal commands if available
-    if (context.terminal.recentExecutions.length > 0) {
-      contextSummary += '\n\n✅ Recent completed commands:';
-      context.terminal.recentExecutions.slice(-5).forEach((exec) => {
-        const duration = exec.endTime && exec.startTime
-          ? ((exec.endTime.getTime() - exec.startTime.getTime()) / 1000).toFixed(1)
-          : '?';
-        contextSummary += `\n  ${exec.commandLine} (exit: ${exec.exitCode ?? '?'}, ${duration}s)`;
-        if (exec.output) {
-          const preview = getOutputPreview(exec.output, false, 150);
-          if (preview) {
-            contextSummary += `\n    Output: ${preview}`;
-          }
-        }
-      });
-    }
-
-    contextSummary += `\n\nYour message: ${message}`;
-
-    this._view?.webview.postMessage({
-      type: 'receiveMessage',
-      message: {
-        role: 'assistant',
-        content: contextSummary,
-      },
+    // Add user message to conversation history
+    this._conversationHistory.push({
+      role: 'user',
+      content: message,
     });
+
+    try {
+      // Call Claude API
+      const response = await this._claudeService.chat(this._conversationHistory);
+
+      // Add assistant response to history
+      this._conversationHistory.push({
+        role: 'assistant',
+        content: response,
+      });
+
+      // Send response to webview
+      this._view?.webview.postMessage({
+        type: 'receiveMessage',
+        message: {
+          role: 'assistant',
+          content: response,
+        },
+      });
+    } catch (error) {
+      // Send error message to webview
+      this._view?.webview.postMessage({
+        type: 'receiveMessage',
+        message: {
+          role: 'assistant',
+          content: `❌ Error communicating with Claude: ${error}`,
+        },
+      });
+    }
   }
 
   private _getHtmlForWebview(webview: vscode.Webview): string {
