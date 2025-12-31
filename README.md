@@ -2,6 +2,11 @@
 
 An AI tutor VSCode extension for Fractal Tech bootcamp students, designed to help beginners avoid common pitfalls when learning to code.
 
+## Important Context
+
+[**technical-spec.md**](docs/technical-spec.md): contains the technical details on the structure of the project.
+[**overview.md**](docs/overview.md): an overview of the philosophy, use, and future plans for this tutor.
+
 ## Setup
 
 ### Prerequisites
