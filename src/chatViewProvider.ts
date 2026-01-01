@@ -1,132 +1,71 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs/promises';
 import { ContextGatherer } from './contextGatherer';
-import { getOutputPreview } from './terminalOutputCleaner';
-import { ClaudeService, Message } from './claudeService';
+import { ClaudeService } from './claudeService';
+import { ConversationManager } from './conversationManager';
+import { RPCServer } from './rpcServer';
+import { RPCRequest } from './shared/rpc';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
-  private _view?: vscode.WebviewView;
-  private _claudeService: ClaudeService;
-  private _conversationHistory: Message[] = [];
+  private view?: vscode.WebviewView;
+  private claudeService: ClaudeService;
+  private conversationStore?: ConversationManager;
+  private rpcServer?: RPCServer;
 
   constructor(
-    private readonly _extensionUri: vscode.Uri,
-    private readonly _contextGatherer: ContextGatherer
+    private readonly extensionUri: vscode.Uri,
+    private readonly contextGatherer: ContextGatherer
   ) {
-    this._claudeService = new ClaudeService(_extensionUri, _contextGatherer);
+    this.claudeService = new ClaudeService(extensionUri, contextGatherer);
+    this.initializeConversationStore();
+  }
+
+  private async initializeConversationStore() {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (workspaceFolder) {
+      this.conversationStore = new ConversationManager(workspaceFolder.uri.fsPath);
+      await this.conversationStore.initialize();
+    }
   }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
     context: vscode.WebviewViewResolveContext,
-    _token: vscode.CancellationToken
+    token: vscode.CancellationToken
   ) {
-    this._view = webviewView;
+    this.view = webviewView;
 
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [this._extensionUri],
+      localResourceRoots: [this.extensionUri],
     };
 
-    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+    webviewView.webview.html = this.getHtmlForWebview(webviewView.webview);
 
-    // Handle messages from the webview
-    webviewView.webview.onDidReceiveMessage(async (data) => {
-      switch (data.type) {
-        case 'sendMessage':
-          await this._handleUserMessage(data.message);
-          break;
-        case 'clearConversation':
-          this._conversationHistory = [];
-          this._claudeService.clearHistory();
-          break;
-        case 'saveTranscript':
-          await this._handleSaveTranscript();
-          break;
-      }
-    });
-  }
-
-  private async _handleUserMessage(message: string) {
-    // Add user message to conversation history
-    this._conversationHistory.push({
-      role: 'user',
-      content: message,
-    });
-
-    try {
-      // Call Claude API
-      const response = await this._claudeService.chat(this._conversationHistory);
-
-      // Add assistant response to history
-      this._conversationHistory.push({
-        role: 'assistant',
-        content: response,
-      });
-
-      // Send response to webview
-      this._view?.webview.postMessage({
-        type: 'receiveMessage',
-        message: {
-          role: 'assistant',
-          content: response,
-        },
-      });
-    } catch (error) {
-      // Send error message to webview
-      this._view?.webview.postMessage({
-        type: 'receiveMessage',
-        message: {
-          role: 'assistant',
-          content: `❌ Error communicating with Claude: ${error}`,
-        },
-      });
-    }
-  }
-
-  private async _handleSaveTranscript() {
-    try {
-      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-      if (!workspaceFolder) {
-        vscode.window.showErrorMessage('No workspace folder open');
-        return;
-      }
-
-      // Create .fractal directory if it doesn't exist
-      const fractalDir = path.join(workspaceFolder.uri.fsPath, '.fractal');
-      try {
-        await fs.mkdir(fractalDir, { recursive: true });
-      } catch (error) {
-        // Directory might already exist, ignore error
-      }
-
-      // Build the transcript
-      const transcript = {
-        savedAt: new Date().toISOString(),
-        systemPrompt: this._claudeService.getSystemPrompt(),
-        conversation: this._claudeService.getFullConversationHistory(),
-      };
-
-      // Save to file
-      const transcriptPath = path.join(fractalDir, 'transcript.json');
-      await fs.writeFile(transcriptPath, JSON.stringify(transcript, null, 2), 'utf-8');
-
-      vscode.window.showInformationMessage(
-        `Transcript saved to ${path.relative(workspaceFolder.uri.fsPath, transcriptPath)}`
+    // Initialize RPC server
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (this.conversationStore && workspaceFolder) {
+      this.rpcServer = new RPCServer(
+        this.conversationStore,
+        this.claudeService,
+        webviewView.webview,
+        workspaceFolder.uri.fsPath
       );
-    } catch (error) {
-      vscode.window.showErrorMessage(`Failed to save transcript: ${error}`);
-      console.error('Error saving transcript:', error);
     }
+
+    // Handle RPC requests from the webview
+    webviewView.webview.onDidReceiveMessage(async (data) => {
+      if (data.type === 'rpc-request' && this.rpcServer) {
+        await this.rpcServer.handleRequest(data as RPCRequest);
+      }
+    });
   }
 
-  private _getHtmlForWebview(webview: vscode.Webview): string {
+  private getHtmlForWebview(webview: vscode.Webview): string {
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, 'dist', 'main.js')
+      vscode.Uri.joinPath(this.extensionUri, 'dist', 'main.js')
     );
     const styleUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, 'dist', 'styles.css')
+      vscode.Uri.joinPath(this.extensionUri, 'dist', 'styles.css')
     );
 
     const nonce = getNonce();

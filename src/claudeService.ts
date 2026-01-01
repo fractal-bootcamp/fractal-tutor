@@ -10,34 +10,15 @@ export interface Message {
   content: string;
 }
 
-export interface DetailedMessage {
-  role: 'user' | 'assistant';
-  content: string | Anthropic.ContentBlock[] | Anthropic.ToolResultBlockParam[];
-  timestamp: string;
-}
-
 export class ClaudeService {
   private client: Anthropic | null = null;
   private systemPrompt: string = '';
-  private fullConversationHistory: DetailedMessage[] = [];
 
   constructor(
     private extensionUri: vscode.Uri,
     private contextGatherer: ContextGatherer
   ) {
     this.loadSystemPrompt();
-  }
-
-  public getFullConversationHistory(): DetailedMessage[] {
-    return this.fullConversationHistory;
-  }
-
-  public getSystemPrompt(): string {
-    return this.systemPrompt;
-  }
-
-  public clearHistory(): void {
-    this.fullConversationHistory = [];
   }
 
   /**
@@ -100,18 +81,6 @@ export class ClaudeService {
         content: msg.content,
       }));
 
-      // Track the user message in detailed history
-      if (messages.length > 0) {
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage.role === 'user') {
-          this.fullConversationHistory.push({
-            role: 'user',
-            content: lastMessage.content,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      }
-
       const req = {
         model,
         max_tokens: maxTokens,
@@ -130,13 +99,6 @@ export class ClaudeService {
         const toolUseBlocks = response.content.filter(
           (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
         );
-
-        // Track assistant's tool use in detailed history
-        this.fullConversationHistory.push({
-          role: 'assistant',
-          content: response.content,
-          timestamp: new Date().toISOString(),
-        });
 
         // Execute all tool calls
         const toolResults: Anthropic.ToolResultBlockParam[] = [];
@@ -157,13 +119,6 @@ export class ClaudeService {
           console.log(`Executing tool: ${toolUse.name}`, toolUse.input, result);
 
         }
-
-        // Track tool results in detailed history
-        this.fullConversationHistory.push({
-          role: 'user',
-          content: toolResults,
-          timestamp: new Date().toISOString(),
-        });
 
         // Add assistant's tool use and tool results to conversation
         anthropicMessages.push({
@@ -186,13 +141,6 @@ export class ClaudeService {
           tools: TOOL_DEFINITIONS as any,
         });
       }
-
-      // Track final assistant response in detailed history
-      this.fullConversationHistory.push({
-        role: 'assistant',
-        content: response.content,
-        timestamp: new Date().toISOString(),
-      });
 
       // Extract final text response
       const textContent = response.content
@@ -251,5 +199,12 @@ Then reload the extension and try again!`;
    */
   reloadSystemPrompt() {
     this.loadSystemPrompt();
+  }
+
+  /**
+   * Get the current system prompt
+   */
+  getSystemPrompt(): string {
+    return this.systemPrompt;
   }
 }
