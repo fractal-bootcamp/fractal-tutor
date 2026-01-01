@@ -59,6 +59,12 @@ export const ChatUI: React.FC = () => {
     }
   };
 
+  const handleSaveTranscript = () => {
+    vscode.postMessage({
+      type: 'saveTranscript',
+    });
+  };
+
   return (
     <div className="flex flex-col h-screen p-3">
       <div className="flex-1 overflow-y-auto py-2 flex flex-col gap-4">
@@ -101,13 +107,22 @@ export const ChatUI: React.FC = () => {
           disabled={isLoading}
           className="w-full p-2 resize-none rounded border border-[var(--vscode-input-border)] bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--vscode-focusBorder)]"
         />
-        <button
-          onClick={handleSend}
-          disabled={isLoading || !input.trim()}
-          className="self-end px-4 py-2 rounded bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] hover:bg-[var(--vscode-button-hoverBackground)] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Send
-        </button>
+        <div className="flex gap-2 self-end">
+          <button
+            onClick={handleSaveTranscript}
+            disabled={messages.length === 0}
+            className="px-4 py-2 rounded bg-[var(--vscode-button-secondaryBackground)] text-[var(--vscode-button-secondaryForeground)] hover:bg-[var(--vscode-button-secondaryHoverBackground)] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Save Transcript
+          </button>
+          <button
+            onClick={handleSend}
+            disabled={isLoading || !input.trim()}
+            className="px-4 py-2 rounded bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] hover:bg-[var(--vscode-button-hoverBackground)] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );

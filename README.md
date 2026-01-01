@@ -94,18 +94,25 @@ fractal-tutor/
 
 ## Current Status
 
-✅ **Phase 2 Complete!**
+✅ **Ready for Testing!**
 
+**Completed Features:**
 - ✅ VSCode extension structure
 - ✅ Sidebar webview panel with React + Tailwind
-- ✅ Context gathering (editor, workspace, terminal)
-- ✅ Claude API integration
+- ✅ Context gathering (editor, workspace, terminal with Shell Integration)
+- ✅ Claude API integration (Sonnet 4)
 - ✅ Conversation history management
-- ✅ Configurable settings
+- ✅ Tool use system with 4 tools:
+  - `read_file` - Read file contents
+  - `search_project` - Search across workspace
+  - `get_terminal_output` - Recent terminal commands and output
+  - `get_editor_state` - Active file, cursor, open tabs
+- ✅ Comprehensive system prompt for tutoring
+- ✅ ANSI escape sequence cleaning for terminal output
 
 **Next Steps:**
-- [ ] Refine system prompt for tutoring effectiveness
-- [ ] Add tool calls for file reading
-- [ ] Implement conversation persistence (save per workspace)
-- [ ] Add Problems panel integration
-- [ ] Polish UI and error handling
+- [ ] Test with real students and iterate on prompt
+- [ ] Add conversation persistence (save per workspace)
+- [ ] Add Problems panel integration (compiler errors)
+- [ ] Streaming responses for better UX
+- [ ] Polish error handling and edge cases

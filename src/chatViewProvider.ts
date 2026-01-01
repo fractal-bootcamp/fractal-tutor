@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs/promises';
 import { ContextGatherer } from './contextGatherer';
 import { getOutputPreview } from './terminalOutputCleaner';
 import { ClaudeService, Message } from './claudeService';
@@ -12,7 +14,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     private readonly _extensionUri: vscode.Uri,
     private readonly _contextGatherer: ContextGatherer
   ) {
-    this._claudeService = new ClaudeService(_extensionUri);
+    this._claudeService = new ClaudeService(_extensionUri, _contextGatherer);
   }
 
   public resolveWebviewView(
@@ -37,6 +39,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           break;
         case 'clearConversation':
           this._conversationHistory = [];
+          this._claudeService.clearHistory();
+          break;
+        case 'saveTranscript':
+          await this._handleSaveTranscript();
           break;
       }
     });
@@ -76,6 +82,42 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           content: `❌ Error communicating with Claude: ${error}`,
         },
       });
+    }
+  }
+
+  private async _handleSaveTranscript() {
+    try {
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      if (!workspaceFolder) {
+        vscode.window.showErrorMessage('No workspace folder open');
+        return;
+      }
+
+      // Create .fractal directory if it doesn't exist
+      const fractalDir = path.join(workspaceFolder.uri.fsPath, '.fractal');
+      try {
+        await fs.mkdir(fractalDir, { recursive: true });
+      } catch (error) {
+        // Directory might already exist, ignore error
+      }
+
+      // Build the transcript
+      const transcript = {
+        savedAt: new Date().toISOString(),
+        systemPrompt: this._claudeService.getSystemPrompt(),
+        conversation: this._claudeService.getFullConversationHistory(),
+      };
+
+      // Save to file
+      const transcriptPath = path.join(fractalDir, 'transcript.json');
+      await fs.writeFile(transcriptPath, JSON.stringify(transcript, null, 2), 'utf-8');
+
+      vscode.window.showInformationMessage(
+        `Transcript saved to ${path.relative(workspaceFolder.uri.fsPath, transcriptPath)}`
+      );
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to save transcript: ${error}`);
+      console.error('Error saving transcript:', error);
     }
   }
 

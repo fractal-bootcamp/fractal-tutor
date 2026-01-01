@@ -49,11 +49,6 @@
           "description": "Anthropic API key",
           "markdownDescription": "Your Anthropic API key. Get one at https://console.anthropic.com/"
         },
-        "fractalTutor.model": {
-          "type": "string",
-          "default": "claude-sonnet-4-20250514",
-          "description": "Which Claude model to use"
-        },
         "fractalTutor.maxTokens": {
           "type": "number",
           "default": 4096,

@@ -2,18 +2,42 @@ import Anthropic from '@anthropic-ai/sdk';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { TOOL_DEFINITIONS, executeTool } from './tools';
+import { ContextGatherer } from './contextGatherer';
 
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
 
+export interface DetailedMessage {
+  role: 'user' | 'assistant';
+  content: string | Anthropic.ContentBlock[] | Anthropic.ToolResultBlockParam[];
+  timestamp: string;
+}
+
 export class ClaudeService {
   private client: Anthropic | null = null;
   private systemPrompt: string = '';
+  private fullConversationHistory: DetailedMessage[] = [];
 
-  constructor(private extensionUri: vscode.Uri) {
+  constructor(
+    private extensionUri: vscode.Uri,
+    private contextGatherer: ContextGatherer
+  ) {
     this.loadSystemPrompt();
+  }
+
+  public getFullConversationHistory(): DetailedMessage[] {
+    return this.fullConversationHistory;
+  }
+
+  public getSystemPrompt(): string {
+    return this.systemPrompt;
+  }
+
+  public clearHistory(): void {
+    this.fullConversationHistory = [];
   }
 
   /**
@@ -27,6 +51,7 @@ export class ClaudeService {
         'system-prompt.md'
       );
       this.systemPrompt = fs.readFileSync(promptPath, 'utf-8');
+      console.log("loaded system prompt: " + promptPath)
     } catch (error) {
       console.error('Failed to load system prompt:', error);
       this.systemPrompt = 'You are a helpful coding tutor for bootcamp students.';
@@ -52,7 +77,7 @@ export class ClaudeService {
   }
 
   /**
-   * Send a message to Claude and get a response
+   * Send a message to Claude and get a response, handling tool use
    *
    * @param messages - Conversation history
    * @returns Claude's response or error message
@@ -64,7 +89,7 @@ export class ClaudeService {
     }
 
     const config = vscode.workspace.getConfiguration('fractalTutor');
-    const model = config.get<string>('model') || 'claude-sonnet-4-20250514';
+    const model = 'claude-opus-4-5';
     const maxTokens = config.get<number>('maxTokens') || 4096;
     const temperature = config.get<number>('temperature') || 1.0;
 
@@ -75,15 +100,101 @@ export class ClaudeService {
         content: msg.content,
       }));
 
-      const response = await this.client!.messages.create({
+      // Track the user message in detailed history
+      if (messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage.role === 'user') {
+          this.fullConversationHistory.push({
+            role: 'user',
+            content: lastMessage.content,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+
+      const req = {
         model,
         max_tokens: maxTokens,
         temperature,
         system: this.systemPrompt,
         messages: anthropicMessages,
+        tools: TOOL_DEFINITIONS as any,
+      }
+
+      console.log("Sending to Anthropic: " + JSON.stringify(req))
+
+      let response = await this.client!.messages.create(req);
+
+      // Handle tool use loop
+      while (response.stop_reason === 'tool_use') {
+        const toolUseBlocks = response.content.filter(
+          (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
+        );
+
+        // Track assistant's tool use in detailed history
+        this.fullConversationHistory.push({
+          role: 'assistant',
+          content: response.content,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Execute all tool calls
+        const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+        for (const toolUse of toolUseBlocks) {
+          const result = await executeTool(
+            toolUse.name,
+            toolUse.input,
+            this.contextGatherer
+          );
+
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: toolUse.id,
+            content: JSON.stringify(result),
+          });
+
+          console.log(`Executing tool: ${toolUse.name}`, toolUse.input, result);
+
+        }
+
+        // Track tool results in detailed history
+        this.fullConversationHistory.push({
+          role: 'user',
+          content: toolResults,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Add assistant's tool use and tool results to conversation
+        anthropicMessages.push({
+          role: 'assistant',
+          content: response.content,
+        });
+
+        anthropicMessages.push({
+          role: 'user',
+          content: toolResults,
+        });
+
+        // Continue the conversation with tool results
+        response = await this.client!.messages.create({
+          model,
+          max_tokens: maxTokens,
+          temperature,
+          system: this.systemPrompt,
+          messages: anthropicMessages,
+          tools: TOOL_DEFINITIONS as any,
+        });
+      }
+
+      // Track final assistant response in detailed history
+      this.fullConversationHistory.push({
+        role: 'assistant',
+        content: response.content,
+        timestamp: new Date().toISOString(),
       });
 
-      // Extract text content from response
+      // Extract final text response
       const textContent = response.content
         .filter((block): block is Anthropic.TextBlock => block.type === 'text')
         .map(block => block.text)
