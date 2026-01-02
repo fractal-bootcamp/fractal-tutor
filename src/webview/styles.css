@@ -12,4 +12,45 @@ body {
   font-family: var(--vscode-font-family);
   color: var(--vscode-foreground);
   background-color: var(--vscode-editor-background);
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Markdown content styling */
+.markdown-content {
+  color: var(--vscode-foreground);
+  line-height: 1.6;
+}
+
+/* Code block scrollbars */
+.markdown-content pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* Ensure code blocks don't overflow */
+.markdown-content pre > div {
+  overflow-x: auto !important;
+}
+
+/* Custom scrollbar for code blocks */
+.markdown-content pre::-webkit-scrollbar {
+  height: 8px;
+}
+
+.markdown-content pre::-webkit-scrollbar-track {
+  background: var(--vscode-scrollbarSlider-background);
+}
+
+.markdown-content pre::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+  border-radius: 4px;
+}
+
+.markdown-content pre::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-activeBackground);
 }

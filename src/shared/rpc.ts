@@ -27,6 +27,17 @@ export interface SaveTranscriptArgs {
   conversationId: string;
 }
 
+export interface UIState {
+  currentConversationId: string | null;
+  input: string;
+}
+
+export interface SaveUIStateArgs {
+  state: UIState;
+}
+
+export interface LoadUIStateArgs {}
+
 // API interface
 export interface TutorAPI {
   createConversation(args: CreateConversationArgs): Promise<string>;
@@ -35,6 +46,8 @@ export interface TutorAPI {
   deleteConversation(args: DeleteConversationArgs): Promise<void>;
   sendMessage(args: SendMessageArgs): Promise<string>;
   saveTranscript(args: SaveTranscriptArgs): Promise<void>;
+  saveUIState(args: SaveUIStateArgs): Promise<void>;
+  loadUIState(args: LoadUIStateArgs): Promise<UIState | null>;
 }
 
 // Internal RPC message types

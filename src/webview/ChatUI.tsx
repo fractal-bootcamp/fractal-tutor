@@ -1,15 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from './rpcClient';
+import { ConversationSelector } from './ConversationSelector';
+import { ChatView } from './ChatView';
+import { ConversationMetadata } from '../conversationManager';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
-}
-
-interface ConversationMetadata {
-  id: string;
-  createdAt: string;
-  label: string;
 }
 
 export const ChatUI: React.FC = () => {
@@ -18,10 +15,10 @@ export const ChatUI: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [conversations, setConversations] = useState<ConversationMetadata[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadConversationList();
+    loadPersistedState();
   }, []);
 
   const loadConversationList = async () => {
@@ -33,9 +30,43 @@ export const ChatUI: React.FC = () => {
     }
   };
 
+  const loadPersistedState = async () => {
+    try {
+      const state = await api.loadUIState({});
+      if (state) {
+        if (state.currentConversationId) {
+          // Load the conversation
+          const conv = await api.loadConversation({ id: state.currentConversationId });
+          setCurrentConversationId(conv.id);
+          setMessages(conv.messages);
+        }
+        if (state.input) {
+          setInput(state.input);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load persisted state:', error);
+    }
+  };
+
+  const persistState = async () => {
+    try {
+      await api.saveUIState({
+        state: {
+          currentConversationId,
+          input,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to persist state:', error);
+    }
+  };
+
+  // Persist state whenever input or currentConversationId changes
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    persistState();
+  }, [input, currentConversationId]);
+
 
   const handleSend = async () => {
     if (!input.trim() || isLoading || !currentConversationId) return;
@@ -107,70 +138,21 @@ export const ChatUI: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen p-3">
-      {/* Conversation selector header */}
-      <div className="flex gap-2 mb-3 pb-3 border-b border-[var(--vscode-panel-border)]">
-        <select
-          value={currentConversationId || ''}
-          onChange={(e) => handleSwitchConversation(e.target.value)}
-          disabled={conversations.length === 0}
-          className="flex-1 px-2 py-1 rounded border border-[var(--vscode-input-border)] bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] disabled:opacity-50"
-        >
-          {conversations.length === 0 && (
-            <option value="">No conversations</option>
-          )}
-          {conversations.map((conv) => (
-            <option key={conv.id} value={conv.id}>
-              {conv.label}
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={handleCreateConversation}
-          className="px-3 py-1 rounded bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] hover:bg-[var(--vscode-button-hoverBackground)]"
-          title="New conversation"
-        >
-          +
-        </button>
-      </div>
+    <div className="flex flex-col h-full overflow-hidden">
+      <ConversationSelector
+        conversations={conversations}
+        currentConversationId={currentConversationId}
+        onSwitchConversation={handleSwitchConversation}
+        onCreateConversation={handleCreateConversation}
+      />
 
-      <div className="flex-1 overflow-y-auto py-2 flex flex-col gap-4">
-        {!currentConversationId && (
-          <div className="flex flex-col items-center justify-center h-full text-center opacity-60">
-            <h2 className="text-xl font-bold mb-2">Welcome to Fractal Tutor</h2>
-            <p>Create a new conversation to get started</p>
-          </div>
-        )}
-        {currentConversationId && messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center opacity-60">
-            <h2 className="text-xl font-bold mb-2">New Conversation</h2>
-            <p>Ask me anything about your code!</p>
-          </div>
-        )}
-        {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            className={`flex flex-col gap-1 p-2 rounded ${
-              msg.role === 'user'
-                ? 'bg-[var(--vscode-editor-inactiveSelectionBackground)]'
-                : 'bg-[var(--vscode-textBlockQuote-background)]'
-            }`}
-          >
-            <div className="text-sm font-bold opacity-80">
-              {msg.role === 'user' ? 'You' : 'Tutor'}
-            </div>
-            <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex flex-col gap-1 p-2 rounded bg-[var(--vscode-textBlockQuote-background)]">
-            <div className="text-sm font-bold opacity-80">Tutor</div>
-            <div className="italic opacity-70">Thinking...</div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-      <div className="flex flex-col gap-2 pt-3 border-t border-[var(--vscode-panel-border)]">
+      <ChatView
+        messages={messages}
+        isLoading={isLoading}
+        currentConversationId={currentConversationId}
+      />
+
+      <div className="flex flex-col gap-2 pt-3 pb-3 px-3 border-t border-[var(--vscode-panel-border)] flex-shrink-0">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}

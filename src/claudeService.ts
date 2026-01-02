@@ -90,8 +90,6 @@ export class ClaudeService {
         tools: TOOL_DEFINITIONS as any,
       }
 
-      console.log("Sending to Anthropic: " + JSON.stringify(req))
-
       let response = await this.client!.messages.create(req);
 
       // Handle tool use loop

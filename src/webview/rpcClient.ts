@@ -8,6 +8,9 @@ import {
   DeleteConversationArgs,
   SendMessageArgs,
   SaveTranscriptArgs,
+  SaveUIStateArgs,
+  LoadUIStateArgs,
+  UIState,
 } from '../shared/rpc';
 import { Conversation, ConversationMetadata } from '../conversationManager';
 
@@ -81,6 +84,14 @@ class RPCClient implements TutorAPI {
 
   async saveTranscript(args: SaveTranscriptArgs): Promise<void> {
     return this.call('saveTranscript', args);
+  }
+
+  async saveUIState(args: SaveUIStateArgs): Promise<void> {
+    return this.call('saveUIState', args);
+  }
+
+  async loadUIState(args: LoadUIStateArgs): Promise<UIState | null> {
+    return this.call('loadUIState', args);
   }
 }
 

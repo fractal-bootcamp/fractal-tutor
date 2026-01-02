@@ -11,6 +11,9 @@ import {
   DeleteConversationArgs,
   SendMessageArgs,
   SaveTranscriptArgs,
+  SaveUIStateArgs,
+  LoadUIStateArgs,
+  UIState,
 } from './shared/rpc';
 import { ConversationManager, Conversation, ConversationMetadata } from './conversationManager';
 import { ClaudeService } from './claudeService';
@@ -70,6 +73,10 @@ export class RPCServer implements TutorAPI {
         return this.sendMessage(args);
       case 'saveTranscript':
         return this.saveTranscript(args);
+      case 'saveUIState':
+        return this.saveUIState(args);
+      case 'loadUIState':
+        return this.loadUIState(args);
       default:
         throw new Error(`Unknown method: ${method}`);
     }
@@ -149,5 +156,27 @@ export class RPCServer implements TutorAPI {
     vscode.window.showInformationMessage(
       `Transcript saved to ${path.relative(this.workspaceRoot, transcriptPath)}`
     );
+  }
+
+  async saveUIState(args: SaveUIStateArgs): Promise<void> {
+    // Create .fractal directory if it doesn't exist
+    const fractalDir = path.join(this.workspaceRoot, '.fractal');
+    await fs.mkdir(fractalDir, { recursive: true });
+
+    // Save UI state to state.json
+    const statePath = path.join(fractalDir, 'state.json');
+    await fs.writeFile(statePath, JSON.stringify(args.state, null, 2), 'utf-8');
+  }
+
+  async loadUIState(args: LoadUIStateArgs): Promise<UIState | null> {
+    const statePath = path.join(this.workspaceRoot, '.fractal', 'state.json');
+
+    try {
+      const content = await fs.readFile(statePath, 'utf-8');
+      return JSON.parse(content) as UIState;
+    } catch (error) {
+      // Return null if file doesn't exist or can't be read
+      return null;
+    }
   }
 }

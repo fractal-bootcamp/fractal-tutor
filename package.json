@@ -56,7 +56,7 @@
         },
         "fractalTutor.temperature": {
           "type": "number",
-          "default": 1.0,
+          "default": 1,
           "description": "Temperature setting (0.0-1.0)"
         },
         "fractalTutor.includeTerminal": {
@@ -78,6 +78,7 @@
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "@types/vscode": "^1.85.0",
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0",
@@ -87,6 +88,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
+    "react-syntax-highlighter": "^16.1.0"
   }
 }
